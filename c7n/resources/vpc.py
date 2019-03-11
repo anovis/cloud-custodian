@@ -1149,6 +1149,61 @@ class RemovePermissions(BaseAction):
                 method(GroupId=r['GroupId'], IpPermissions=groups)
 
 
+@SecurityGroup.action_registry.register('set-permissions')
+class SetPermissions(BaseAction):
+    """Action to set ingress/egress rule(s) to a security group.
+    If the `force` flag is included then all previous rules will be
+    overridden. Otherwise the rules will be added to the existing rules.
+
+    :example:
+
+    .. code-block:: yaml
+
+            policies:
+              - name: security-group-set-secure
+                resource: security-group
+                actions:
+                  - type: set-permissions
+                    ingress: matched
+                    force
+
+    """
+    schema = type_schema(
+        'set-permissions',
+        ingress={'type': 'string', 'enum': ['matched', 'all']},
+        egress={'type': 'string', 'enum': ['matched', 'all']},
+        force={"force"}),
+
+    permissions = ('ec2:RevokeSecurityGroupIngress',
+                   'ec2:RevokeSecurityGroupEgress',
+                   'ec2:AuthorizeSecurityGroupEgress,'
+                   'ec2:AuthorizeSecurityGroupEgress')
+
+    def process(self, resources):
+        i_perms = self.data.get('ingress', 'matched')
+        e_perms = self.data.get('egress', 'matched')
+
+        client = local_session(self.manager.session_factory).client('ec2')
+        for r in resources:
+            for label, perms in [('ingress', i_perms), ('egress', e_perms)]:
+                if perms == 'matched':
+                    key = 'MatchedIpPermissions%s' % (
+                            label == 'egress' and 'Egress' or '')
+                    groups = r.get(key, ())
+                elif perms == 'all':
+                    key = 'IpPermissions%s' % (
+                            label == 'egress' and 'Egress' or '')
+                    groups = r.get(key, ())
+                elif isinstance(perms, list):
+                    groups = perms
+                else:
+                    continue
+                if not groups:
+                    continue
+                method = getattr(client, 'revoke_security_group_%s' % label)
+                method(GroupId=r['GroupId'], IpPermissions=groups)
+
+
 @resources.register('eni')
 class NetworkInterface(query.QueryResourceManager):
 
