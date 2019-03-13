@@ -37,7 +37,7 @@ from jsonschema.exceptions import best_match
 from c7n.policy import execution
 from c7n.provider import clouds
 from c7n.resources import load_resources
-from c7n.filters import ValueFilter, EventFilter, AgeFilter
+from c7n.filters import ValueFilter, EventFilter, AgeFilter, ParameterStoreFilter
 
 
 def validate(data, schema=None):
@@ -170,6 +170,7 @@ def generate(resource_types=()):
             'value': ValueFilter.schema,
             'event': EventFilter.schema,
             'age': AgeFilter.schema,
+            'pstore': ParameterStoreFilter.schema,
             # Shortcut form of value filter as k=v
             'valuekv': {
                 'type': 'object',

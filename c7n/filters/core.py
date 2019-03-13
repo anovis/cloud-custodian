@@ -35,7 +35,8 @@ from c7n.executor import ThreadPoolExecutor
 from c7n.registry import PluginRegistry
 from c7n.resolver import ValuesFrom
 from c7n.utils import set_annotation, type_schema, parse_cidr
-
+# from c7n.filters.parameterstore import ParameterStoreFilter
+from c7n.utils import local_session
 
 class FilterValidationError(Exception):
     pass
@@ -107,6 +108,7 @@ class FilterRegistry(PluginRegistry):
         self.register('and', And)
         self.register('not', Not)
         self.register('event', EventFilter)
+        self.register('pstore', ParameterStoreFilter)
 
     def parse(self, data, manager):
         results = []
@@ -451,6 +453,8 @@ class ValueFilter(Filter):
         return super(ValueFilter, self).process(resources, event)
 
     def get_resource_value(self, k, i):
+        breakpoint()
+
         if k.startswith('tag:'):
             tk = k.split(':', 1)[1]
             r = None
@@ -659,3 +663,38 @@ class EventFilter(ValueFilter):
         if self(event):
             return resources
         return []
+
+
+class ParameterStoreFilter(ValueFilter):
+    """Filter against tags in the parameter store that is associated with a resource."""
+
+    schema = type_schema('pstore', rinherit=ValueFilter.schema)
+
+    def generate_param(self,arn):
+        split_arn = arn.split(':')
+        return f'/{split_arn[4]}/{split_arn[5]}'
+
+    def get_resource_value(self, k, i):
+        # resource -> arn/type
+        # arb/type -> parameters
+        # parameters -> tags
+        # tags -> value
+        client = local_session(self.manager.session_factory).client('ssm')
+        parameter_key = self.generate_param(i['TopicArn'])
+        try:
+            resp = client.list_tags_for_resource(ResourceType='Parameter', ResourceId=parameter_key)
+        except:
+            return None
+
+        if k.startswith('tag:'):
+            tk = k.split(':', 1)[1]
+            r = None
+            for t in resp.get('TagList',[]):
+                if t.get('Key') == tk:
+                    r = t.get('Value')
+                    break
+        elif k in i:
+            r = i.get(k)
+        else:
+            r = self.expr[k].search(i)
+        return r
