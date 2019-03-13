@@ -681,6 +681,7 @@ class ParameterStoreFilter(ValueFilter):
         # tags -> value
         client = local_session(self.manager.session_factory).client('ssm')
         parameter_key = self.generate_param(i['TopicArn'])
+        breakpoint()
         try:
             resp = client.list_tags_for_resource(ResourceType='Parameter', ResourceId=parameter_key)
         except:
