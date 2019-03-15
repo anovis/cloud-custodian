@@ -698,18 +698,10 @@ class ParameterStoreFilter(ValueFilter):
                 {'type': 'null'}]},
             'op': {'enum': list(OPERATORS.keys())}}
 
-
-    def generate_param(self,arn):
-        split_arn = arn.split(':')
-        return f'/{split_arn[4]}/{split_arn[5]}'
-
-    def get_resource_value(self, k, i):
-        # arb/type -> parameters
-        # parameters -> tags
-        # tags -> value
+    def get_parameter_tag_list(self,i):
         client = local_session(self.manager.session_factory).client('ssm')
         param_key_input = self.data['param_key']
-        if isinstance(param_key_input,str):
+        if isinstance(param_key_input, str):
             parameter_key = param_key_input
         if isinstance(param_key_input, list):
             parameter_key = ""
@@ -717,22 +709,23 @@ class ParameterStoreFilter(ValueFilter):
                 if pk == 'self.resource':
                     parameter_key = parameter_key + '/' + self.manager.type
                 else:
-                    parameter_key = parameter_key + '/' + ValueFilter.get_resource_value(self,pk,i)
+                    parameter_key = parameter_key + '/' + ValueFilter.get_resource_value(self, pk, i)
 
         try:
             resp = client.list_tags_for_resource(ResourceType='Parameter', ResourceId=parameter_key)
+            return resp.get('TagList', [])
         except:
-            return None
+            return []
 
+    def get_resource_value(self, k, i):
         if k.startswith('tag:'):
             tk = k.split(':', 1)[1]
             r = None
-            for t in resp.get('TagList',[]):
+            tag_list = self.get_parameter_tag_list(i)
+            for t in tag_list:
                 if t.get('Key') == tk:
                     r = t.get('Value')
                     break
-        elif k in i:
-            r = i.get(k)
         else:
-            r = self.expr[k].search(i)
+            r = ValueFilter.get_resource_value(self, k, i)
         return r
