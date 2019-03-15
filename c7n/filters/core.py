@@ -453,8 +453,6 @@ class ValueFilter(Filter):
         return super(ValueFilter, self).process(resources, event)
 
     def get_resource_value(self, k, i):
-        breakpoint()
-
         if k.startswith('tag:'):
             tk = k.split(':', 1)[1]
             r = None
@@ -668,20 +666,59 @@ class EventFilter(ValueFilter):
 class ParameterStoreFilter(ValueFilter):
     """Filter against tags in the parameter store that is associated with a resource."""
 
-    schema = type_schema('pstore', rinherit=ValueFilter.schema)
+    # schema = type_schema('pstore', rinherit=ValueFilter.schema,
+    #                      props={'param_key': {'oneOf': [
+    #                         {'type': 'array'},
+    #                         {'type': 'string'}]}
+    #                      })
+    schema = {
+        'type': 'object',
+        # Doesn't mix well with inherits that extend
+        # 'additionalProperties': False,
+        'required': ['type'],
+        'properties': {
+            # Doesn't mix well as enum with inherits that extend
+            'type': {'enum': ['pstore']},
+            'key': {'type': 'string'},
+            'param_key': {'oneOf': [
+                {'type': 'array'},
+                {'type': 'string'}]}
+             },
+            'value_type': {'enum': [
+                'age', 'integer', 'expiration', 'normalize', 'size',
+                'cidr', 'cidr_size', 'swap', 'resource_count', 'expr',
+                'unique_size']},
+            'default': {'type': 'object'},
+            'value_from': ValuesFrom.schema,
+            'value': {'oneOf': [
+                {'type': 'array'},
+                {'type': 'string'},
+                {'type': 'boolean'},
+                {'type': 'number'},
+                {'type': 'null'}]},
+            'op': {'enum': list(OPERATORS.keys())}}
+
 
     def generate_param(self,arn):
         split_arn = arn.split(':')
         return f'/{split_arn[4]}/{split_arn[5]}'
 
     def get_resource_value(self, k, i):
-        # resource -> arn/type
         # arb/type -> parameters
         # parameters -> tags
         # tags -> value
         client = local_session(self.manager.session_factory).client('ssm')
-        parameter_key = self.generate_param(i['TopicArn'])
-        breakpoint()
+        param_key_input = self.data['param_key']
+        if isinstance(param_key_input,str):
+            parameter_key = param_key_input
+        if isinstance(param_key_input, list):
+            parameter_key = ""
+            for pk in param_key_input:
+                if pk == 'self.resource':
+                    parameter_key = parameter_key + '/' + self.manager.type
+                else:
+                    parameter_key = parameter_key + '/' + ValueFilter.get_resource_value(self,pk,i)
+
         try:
             resp = client.list_tags_for_resource(ResourceType='Parameter', ResourceId=parameter_key)
         except:
