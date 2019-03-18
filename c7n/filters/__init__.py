@@ -24,11 +24,11 @@ from .core import (
     ValueFilter,
     AgeFilter,
     EventFilter,
-    ParameterStoreFilter)
+    )
 from .config import ConfigCompliance
 from .health import HealthEventFilter
 from .iamaccess import CrossAccountAccessFilter, PolicyChecker
 from .metrics import MetricsFilter, ShieldMetrics
 from .vpc import DefaultVpcBase
 from .securityhub import SecurityHubFindingFilter
-# from .parameterstore import
+from .parameterstore import ParameterStoreFilter
