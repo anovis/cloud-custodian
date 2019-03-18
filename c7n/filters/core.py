@@ -506,7 +506,6 @@ class ValueFilter(Filter):
             v, r = self.process_value_type(self.v, r, i)
         else:
             v = self.v
-
         # Value match
         if r is None and v == 'absent':
             return True
@@ -673,21 +672,14 @@ class ParameterStoreFilter(ValueFilter):
     #                      })
     schema = {
         'type': 'object',
-        # Doesn't mix well with inherits that extend
-        # 'additionalProperties': False,
-        'required': ['type'],
+        'required': ['type', 'param_key'],
         'properties': {
-            # Doesn't mix well as enum with inherits that extend
             'type': {'enum': ['pstore']},
             'key': {'type': 'string'},
             'param_key': {'oneOf': [
                 {'type': 'array'},
                 {'type': 'string'}]}
              },
-            'value_type': {'enum': [
-                'age', 'integer', 'expiration', 'normalize', 'size',
-                'cidr', 'cidr_size', 'swap', 'resource_count', 'expr',
-                'unique_size']},
             'default': {'type': 'object'},
             'value_from': ValuesFrom.schema,
             'value': {'oneOf': [
@@ -698,34 +690,47 @@ class ParameterStoreFilter(ValueFilter):
                 {'type': 'null'}]},
             'op': {'enum': list(OPERATORS.keys())}}
 
-    def get_parameter_tag_list(self,i):
-        client = local_session(self.manager.session_factory).client('ssm')
+    def get_parameter_key(self,i):
         param_key_input = self.data['param_key']
         if isinstance(param_key_input, str):
             parameter_key = param_key_input
         if isinstance(param_key_input, list):
             parameter_key = ""
             for pk in param_key_input:
-                if pk == 'self.resource':
+                if pk == 'self.resource': # make programmatic
                     parameter_key = parameter_key + '/' + self.manager.type
                 else:
                     parameter_key = parameter_key + '/' + ValueFilter.get_resource_value(self, pk, i)
 
+        return parameter_key
+
+    def get_tag_list(self, parameter_key):
+        client = local_session(self.manager.session_factory).client('ssm')
         try:
             resp = client.list_tags_for_resource(ResourceType='Parameter', ResourceId=parameter_key)
             return resp.get('TagList', [])
         except:
             return []
 
+    def get_parameter_value(self, parameter_key,key):
+        client = local_session(self.manager.session_factory).client('ssm')
+        try:
+            resp = client.get_parameter(Name=parameter_key)
+            return resp.get('Parameter',{}).get(key)
+        except:
+            return None
+
     def get_resource_value(self, k, i):
+        parameter_key = self.get_parameter_key(i)
+
         if k.startswith('tag:'):
             tk = k.split(':', 1)[1]
             r = None
-            tag_list = self.get_parameter_tag_list(i)
+            tag_list = self.get_tag_list(parameter_key)
             for t in tag_list:
                 if t.get('Key') == tk:
                     r = t.get('Value')
                     break
         else:
-            r = ValueFilter.get_resource_value(self, k, i)
+            r = self.get_parameter_value(parameter_key, k)
         return r
