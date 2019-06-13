@@ -997,3 +997,171 @@ class Policy(object):
                 except Exception as e:
                     raise ValueError(
                         "Policy: %s Date/Time not parsable: %s, %s" % (policy_name, i, e))
+
+##################################################
+
+from functools import wraps
+import os
+from c7n.registry import PluginRegistry
+from c7n.utils import type_schema
+
+secrets = PluginRegistry('c7n.secrets')
+
+# TODO format_string_values IN UTILS
+# TODO policy expand_variables (want run time)
+# TODO policy command wrapper in commands ??
+# TODO def run(options, policies): -> expand secrets here ??
+
+
+# TODO  use case
+# api keys for actions/ filters
+# credentials for azure/ gcp
+
+
+"""
+policies:
+  - name: "test"
+    secrets: 
+     - type: vault
+     - keys:
+      - KEY
+    resource: aws.vpc 
+    actions:
+      - type: secret_action
+        url: www.needkey.com/{KEY}/xx
+        headers: {secret_key: {KEY}
+
+
+
+"""
+
+from copy import deepcopy
+
+
+
+def add_secrets(f):
+
+    @wraps(f)
+    def _process_secrets(self, resources, **kwargs):
+        safe_data = deepcopy(self.data)
+        breakpoint()
+
+        # inject secrets
+        secrets[self.data["secrets"]["type"]](self.data)
+
+        result = f(self, resources, **kwargs)
+        # make sure secrets are removed from policy data
+        self.data = safe_data
+
+        return result
+
+    return _process_secrets
+
+#
+# def enable_secret(cls, methods: list = ["process"]):
+#     class SecretWrapper(object):
+#         def __call__(self, cls):
+#             class Wrapped(cls):
+#                 classattr = self.arg
+#
+#                 def new_method(self, value):
+#                     return value * 2
+#
+#             return Wrapped
+#
+#         def __getattribute__(self, attr):
+#             breakpoint()
+#             orig_attr = self.wrapped.__getattribute__(attr)
+#             if orig_attr in methods:
+#                 @add_secrets
+#                 def hooked(*args, **kwargs):
+#                     # with Secrets(self.policy) as secret_ctx:
+#                     result = orig_attr(*args, **kwargs)
+#                     return result
+#
+#                 return hooked
+#             else:
+#                 return orig_attr
+#
+#     return SecretWrapper
+
+
+
+def enable_secret(Cls):
+    class SecretClass(Cls):
+        def __init__(self, *args, **kwargs):
+            self.base_cls = Cls(*args, **kwargs)
+
+        def __getattribute__(self, s):
+            breakpoint()
+            try:
+                x = super(SecretClass, self).__getattribute__(s)
+            except AttributeError:
+                pass
+            else:
+                return x
+            x = self.base_cls.__getattribute__(s)
+            if type(x) == type(self.__init__):  # it is an instance method
+                return add_secrets(x)  # this is equivalent of just decorating the method with time_this
+            else:
+                return x
+
+    return SecretClass
+
+
+from c7n.utils import format_string_values
+
+class Secrets(object):
+    schema = type_schema(
+        'base_secrets',
+        **{
+            'keys': {'type': 'array', 'items': {'type': 'string'}},
+        }
+    )
+
+    def __init__(self, policy):
+        self.policy = policy
+        self.secrets = self.policy.data['secrets']["keys"]
+
+    def __call__(self):
+        for k,v in self.secrets.items():
+            self.secrets[k] = self.get_secret(v)
+
+        format_string_values(self.policy, self.secrets)
+
+    def __enter__(self):
+        for k in self.secret_policy.get("keys", []):
+            os.environ[k] = self.get_secret(k)
+
+    def __exit__(self):
+        for k in self.secret_policy.get("keys", []):
+            del os.environ[k]
+
+    def get_secret(self, name):
+        raise NotImplemented
+
+
+@secrets.register("secrets_manager")
+class SecretsManager(Secrets):
+    schema = type_schema(
+        's3',
+        rinherit=Secrets.schema,
+        **{
+            'VersionId': {'type': 'string'},
+            'VersionStage': {'type': 'string'}
+        }
+
+    )
+
+    def __init__(self, policy):
+        super(SecretsManager, self).__init__(policy)
+
+    def s3m_client(self):
+        if not self._s3mclient:
+            self._s3mclient = boto3.client("secretsmanager")
+
+        return self._s3mclient
+
+    def get_secret(self, name):
+        resp = self.s3m_client().get_secret_value(SecretId=name)
+        return resp.get('SecretString')

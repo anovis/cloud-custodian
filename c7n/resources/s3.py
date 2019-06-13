@@ -563,6 +563,7 @@ class S3Metrics(MetricsFilter):
              'Value': 'AllStorageTypes'}]
 
 
+
 @filters.register('cross-account')
 class S3CrossAccountFilter(CrossAccountAccessFilter):
     """Filters cross-account access to S3 buckets
@@ -648,7 +649,11 @@ class S3CrossAccountFilter(CrossAccountAccessFilter):
             ])
 
 
+from c7n.policy import enable_secret
+
+
 @filters.register('global-grants')
+@enable_secret
 class GlobalGrantsFilter(Filter):
     """Filters for all S3 buckets that have global-grants
 

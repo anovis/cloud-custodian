@@ -225,6 +225,9 @@ def generate(resource_types=()):
                 'tags': {'type': 'array', 'items': {'type': 'string'}},
                 'mode': {'$ref': '#/definitions/policy-mode'},
                 'source': {'enum': ['describe', 'config']},
+                'secrets': {
+                    'type': 'object',
+                },
                 'actions': {
                     'type': 'array',
                 },
