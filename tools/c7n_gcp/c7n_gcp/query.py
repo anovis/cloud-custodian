@@ -44,7 +44,7 @@ class ResourceQuery(object):
         if m.scope in ('project', 'zone'):
             project = session.get_default_project()
             if m.scope_template:
-                project = m.scope_template.format(project)
+                project = m.scope_template.format(project, region=session.get_default_region())
             if m.scope_key:
                 params[m.scope_key] = project
             else:

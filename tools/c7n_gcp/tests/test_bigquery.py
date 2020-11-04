@@ -78,3 +78,38 @@ class BigQueryProjectTest(BaseTest):
         self.assertEqual(len(resources), 1)
         self.assertEqual(resources[0]['friendlyName'], 'test project')
         self.assertEqual(resources[0]['id'], 'cloud-custodian')
+
+    def test_create_capacity_commitment(self):
+        factory = self.replay_flight_data('bq-project-create-capacity-commitment')
+        p = self.load_policy({
+            'name': 'bq-create-capacity-commitment',
+            'resource': 'gcp.bq-project',
+            'actions': [{'type':'create-capacity-commitment','slotCount':100,'plan':'FLEX'}]
+            },
+            session_factory=factory)
+        resources = p.run()
+        self.assertEqual(len(resources), 1)
+        self.assertEqual(resources[0]['id'], 'cloud-custodian')
+
+class BigQueryCapacityCommitmentTest(BaseTest):
+   
+    def test_query(self):
+        factory = self.replay_flight_data('bq-project-delete-capacity-commitment')
+        p = self.load_policy({
+            'name': 'bq-capacity-commitment',
+            'resource': 'gcp.bq-capacity-commitment',
+            },
+            session_factory=factory)
+        resources = p.run()
+        self.assertEqual(len(resources), 1)
+
+    def test_delete_capacity_commitment(self):
+        factory = self.replay_flight_data('bq-project-delete-capacity-commitment')
+        p = self.load_policy({
+            'name': 'bq-delete-capacity-commitment',
+            'resource': 'gcp.bq-capacity-commitment',
+            'actions': ['delete']
+            },
+            session_factory=factory)
+        resources = p.run()
+        self.assertEqual(len(resources), 0)

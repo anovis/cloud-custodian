@@ -1,0 +1,30 @@
+{
+  "headers": {
+    "content-type": "application/json; charset=UTF-8",
+    "vary": "Origin, X-Origin, Referer",
+    "date": "Wed, 04 Nov 2020 04:29:49 GMT",
+    "server": "ESF",
+    "cache-control": "private",
+    "x-xss-protection": "0",
+    "x-frame-options": "SAMEORIGIN",
+    "alt-svc": "h3-Q050=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-T051=\":443\"; ma=2592000,h3-T050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\"",
+    "transfer-encoding": "chunked",
+    "status": "200",
+    "content-length": "359",
+    "-content-encoding": "gzip",
+    "content-location": "https://bigqueryreservation.googleapis.com/v1/projects/cloud-custodian/locations/US/capacityCommitments?alt=json"
+  },
+  "body": {
+    "capacityCommitments": [
+      {
+        "name": "projects/cloud-custodian/locations/US/capacityCommitments/11359231921658549353",
+        "slotCount": "100",
+        "plan": "FLEX",
+        "state": "ACTIVE",
+        "commitmentEndTime": "2020-11-04T04:27:50.994601Z",
+        "failureStatus": {},
+        "commitmentStartTime": "2020-11-04T04:26:50.994601Z"
+      }
+    ]
+  }
+}
