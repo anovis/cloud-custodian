@@ -563,15 +563,19 @@ class PeriodicEvent(EventSource):
                 self.data.get('region', DEFAULT_REGION),
                 self.data.get('name', '{}{}'.format(self.prefix, func.name))),
             'schedule': self.data['schedule'],
-            'timeZone': self.data.get('tz', 'Etc/UTC')}
+            'timeZone': self.data.get('tz', 'UTC')}
 
         if self.target_type == 'http':
             job['httpTarget'] = {
                 'uri': 'https://{}-{}.cloudfunctions.net/{}'.format(
                     self.data.get('region', DEFAULT_REGION),
                     self.session.get_default_project(),
-                    func.name)
+                    func.name),
+                'oidcToken':{
+                    "serviceAccountEmail": self.data['service-account']
+                }
             }
+                
         elif self.target_type == 'pubsub':
             job['pubsubTarget'] = {
                 'topicName': target.get_topic_param(),
